@@ -1,50 +1,60 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
+import { AuthProvider, useAuth } from "@/components/auth/auth-provider"
+import { EnhancedAuthModal } from "@/components/auth/enhanced-auth-modal"
+import { UserProfile } from "@/components/auth/user-profile"
 import { ChatInterface } from "@/components/chat-interface"
 import { MoodTracker } from "@/components/mood-tracker"
 import { DailyCheckin } from "@/components/daily-checkin"
 import { SelfCareResources } from "@/components/self-care-resources"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { AuthModal } from "@/components/auth-modal"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Heart, MessageCircle, BarChart3, BookOpen, Sparkles } from "lucide-react"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Heart, MessageCircle, BarChart3, BookOpen, Sparkles, User, Settings, LogOut } from "lucide-react"
 
-export default function Home() {
-  const [user, setUser] = useState<{ name: string; id: string } | null>(null)
-  const [showAuth, setShowAuth] = useState(false)
+function AppContent() {
+  const { user, login, logout, isLoading } = useAuth()
+  const [showProfile, setShowProfile] = useState(false)
 
-  useEffect(() => {
-    const savedUser = localStorage.getItem("mindease-user")
-    if (savedUser) {
-      setUser(JSON.parse(savedUser))
-    } else {
-      setShowAuth(true)
-    }
-
-    // Ensure theme is properly initialized
-    const savedTheme = localStorage.getItem("mindease-theme")
-    if (!savedTheme) {
-      localStorage.setItem("mindease-theme", "light")
-    }
-  }, [])
-
-  const handleAuth = (userData: { name: string; id: string }) => {
-    setUser(userData)
-    localStorage.setItem("mindease-user", JSON.stringify(userData))
-    setShowAuth(false)
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-blue-900 dark:to-indigo-900 flex items-center justify-center">
+        <div className="text-center">
+          <Heart className="h-12 w-12 text-pink-500 mx-auto mb-4 animate-pulse" />
+          <p className="text-gray-600 dark:text-gray-300">Loading MindEase...</p>
+        </div>
+      </div>
+    )
   }
 
-  const handleLogout = () => {
-    setUser(null)
-    localStorage.removeItem("mindease-user")
-    setShowAuth(true)
+  if (!user) {
+    return <EnhancedAuthModal onAuth={login} />
   }
 
-  if (showAuth) {
-    return <AuthModal onAuth={handleAuth} />
+  if (showProfile) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-blue-900 dark:to-indigo-900">
+        <header className="border-b bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50">
+          <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+            <Button variant="ghost" onClick={() => setShowProfile(false)}>
+              ← Back to MindEase
+            </Button>
+            <ThemeToggle />
+          </div>
+        </header>
+        <UserProfile />
+      </div>
+    )
   }
 
   return (
@@ -58,11 +68,39 @@ export default function Home() {
             </h1>
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-600 dark:text-gray-300">Welcome, {user?.name}</span>
+            <span className="text-sm text-gray-600 dark:text-gray-300 hidden sm:block">Welcome, {user.name}</span>
             <ThemeToggle />
-            <Button variant="outline" size="sm" onClick={handleLogout}>
-              Logout
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback>{user.avatar || "😊"}</AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end" forceMount>
+                <div className="flex items-center justify-start gap-2 p-2">
+                  <div className="flex flex-col space-y-1 leading-none">
+                    <p className="font-medium">{user.name}</p>
+                    {user.email && <p className="w-[200px] truncate text-sm text-muted-foreground">{user.email}</p>}
+                  </div>
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setShowProfile(true)}>
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Profile</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowProfile(true)}>
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Settings</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={logout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Log out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>
@@ -101,17 +139,17 @@ export default function Home() {
           <TabsContent value="chat">
             <Card>
               <CardContent className="p-0">
-                <ChatInterface userId={user?.id || ""} />
+                <ChatInterface userId={user.id} />
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="mood">
-            <MoodTracker userId={user?.id || ""} />
+            <MoodTracker userId={user.id} />
           </TabsContent>
 
           <TabsContent value="checkin">
-            <DailyCheckin userId={user?.id || ""} />
+            <DailyCheckin userId={user.id} />
           </TabsContent>
 
           <TabsContent value="resources">
@@ -120,5 +158,13 @@ export default function Home() {
         </Tabs>
       </main>
     </div>
+  )
+}
+
+export default function Home() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   )
 }
